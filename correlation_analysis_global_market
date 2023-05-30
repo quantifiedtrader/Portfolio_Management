@@ -1,0 +1,83 @@
+import yfinance as yf
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Define the ticker symbols and names for the top 5 indices
+index_data = [
+    ("^GSPC", "S&P 500"),
+    ("^IXIC", "NASDAQ"),
+    ("^DJI", "Dow Jones"),
+    ("^FTSE", "FTSE 100"),
+    ("^N225", "Nikkei 225")
+]
+
+# Fetch the adjusted closing prices for the last 10 years for each index
+data = yf.download([symbol for symbol, _ in index_data], period="10y")["Adj Close"]
+
+# Calculate daily returns for each index
+returns = data.pct_change().dropna()
+
+# Plot daily returns on different charts
+for symbol, name in index_data:
+    plt.figure()
+    plt.plot(returns[symbol])
+    plt.title(f"Daily Returns of {name}")
+    plt.xlabel("Date")
+    plt.ylabel("Daily Return")
+
+# Plot histograms of returns for each index
+for symbol, name in index_data:
+    plt.figure()
+    sns.histplot(returns[symbol].dropna(), kde=True)
+    plt.title(f"Histogram of Returns for {name}")
+    plt.xlabel("Daily Return")
+
+# Perform correlation analysis
+correlation = returns.corr()
+
+# Plot heatmap of correlation coefficients
+plt.figure(figsize=(8, 6))
+sns.heatmap(correlation, annot=True, cmap="coolwarm")
+plt.title("Correlation Heatmap")
+
+# Find where correlation between all stocks increased drastically
+drastic_increase = correlation[correlation > 0.8].stack().reset_index()
+drastic_increase = drastic_increase[drastic_increase["level_0"] != drastic_increase["level_1"]]
+drastic_increase.columns = ["Index 1", "Index 2", "Correlation"]
+drastic_increase = drastic_increase.sort_values(by="Correlation", ascending=False)
+
+# Print the conclusions based on the correlation coefficients
+print("Conclusion:")
+print("===========")
+print("The correlation coefficients between the indices are as follows:")
+print(correlation)
+print("\nBased on the correlation coefficients, we can conclude that...")
+
+# Display the drastic increase in correlation
+print("\nDrastic Increase in Correlation:")
+print("===============================")
+print(drastic_increase)
+
+# Mark regions of drastic increase in correlation
+for _, row in drastic_increase.iterrows():
+    index1 = row["Index 1"]
+    index2 = row["Index 2"]
+    corr = row["Correlation"]
+
+    plt.figure()
+    plt.plot(returns[index1], label=index1)
+    plt.plot(returns[index2], label=index2)
+    plt.title(f"Daily Returns of {index1} and {index2}")
+    plt.xlabel("Date")
+    plt.ylabel("Daily Return")
+    plt.legend()
+
+    plt.figure()
+    sns.jointplot(x=returns[index1], y=returns[index2], kind="scatter")
+    plt.xlabel(f"Returns of {index1}")
+    plt.ylabel(f"Returns of {index2}")
+    plt.title(f"Scatter Plot of Returns between {index1} and {index2}\nCorrelation: {corr:.2f}")
+
+# Show all the plots
+plt.show()
