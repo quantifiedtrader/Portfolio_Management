@@ -1,0 +1,61 @@
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import minimize
+
+# List of top 10 volume cryptocurrencies
+crypto_symbols = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'USDT-USD', 'BCH-USD', 'LTC-USD', 'EOS-USD', 'BNB-USD', 'BSV-USD', 'XLM-USD']
+
+# Retrieve adjusted prices from yfinance
+prices = yf.download(crypto_symbols, period='1y')['Adj Close']
+
+# Calculate daily returns
+returns = prices.pct_change().dropna()
+
+# Number of iterations for Monte Carlo simulation
+num_iterations = 10000
+
+# Empty lists to store results
+portfolio_returns = []
+portfolio_volatilities = []
+portfolio_weights = []
+
+# Calculate expected returns and covariance matrix
+expected_returns = returns.mean()
+cov_matrix = returns.cov()
+
+# Generate random portfolio weights and calculate returns and volatilities
+for _ in range(num_iterations):
+    weights = np.random.random(len(crypto_symbols))
+    weights /= np.sum(weights)
+    portfolio_weights.append(weights)
+    portfolio_returns.append(np.dot(weights, expected_returns))
+    portfolio_volatilities.append(np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights))))
+
+# Convert lists to numpy arrays
+portfolio_returns = np.array(portfolio_returns)
+portfolio_volatilities = np.array(portfolio_volatilities)
+portfolio_weights = np.array(portfolio_weights)
+
+# Calculate the Sharpe ratio for each portfolio
+risk_free_rate = 0.0  # Assume a risk-free rate of return
+sharpe_ratios = (portfolio_returns - risk_free_rate) / portfolio_volatilities
+
+# Find the index of the most efficient portfolio (highest Sharpe ratio)
+max_sharpe_index = np.argmax(sharpe_ratios)
+
+# Extract the weights of the most efficient portfolio
+max_sharpe_weights = portfolio_weights[max_sharpe_index]
+
+# Plotting the results
+plt.figure(figsize=(12, 8))
+plt.scatter(portfolio_volatilities, portfolio_returns, c=sharpe_ratios, cmap='viridis')
+plt.colorbar(label='Sharpe Ratio')
+plt.scatter(portfolio_volatilities[max_sharpe_index], portfolio_returns[max_sharpe_index],
+            c='r', label='Most Efficient Portfolio')
+plt.xlabel('Volatility')
+plt.ylabel('Return')
+plt.title('Markowitz Efficient Frontier with Monte Carlo Analysis')
+plt.legend()
+plt.show()
